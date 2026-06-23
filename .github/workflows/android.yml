@@ -66,7 +66,7 @@ jobs:
         }
         EOF
 
-        # 5. Accessibility Config XML
+        # 5. Accessibility Config XML (FIXED SCHEMA URL)
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://android.com"
@@ -76,7 +76,7 @@ jobs:
             android:canRetrieveWindowContent="false" />
         EOF
 
-        # 6. Android Manifest XML (FIXED TO NATIVE SYSTEM THEME)
+        # 6. Android Manifest XML (FIXED SCHEMA URL)
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://android.com" package="com.example.appblocker">
