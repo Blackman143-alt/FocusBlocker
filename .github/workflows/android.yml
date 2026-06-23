@@ -18,7 +18,7 @@ jobs:
 
     - name: Clean and Generate Base Files
       run: |
-        rm -rf app settings.gradle build.gradle gradlew gradle
+        rm -rf app settings.gradle build.gradle gradlew gradle gradle.properties
         mkdir -p app/src/main/java/com/example/appblocker
         mkdir -p app/src/main/res/xml
 
@@ -28,7 +28,12 @@ jobs:
         include ':app'
         EOF
 
-        # 2. Root build.gradle with explicit repository definitions for plugins
+        # 2. REQUIRED PROPERTY FILE FOR ANDROIDX (FIXES THE METADATA ERROR)
+        cat << 'EOF' > gradle.properties
+        android.useAndroidX=true
+        EOF
+
+        # 3. Root build.gradle with explicit repository definitions for plugins
         cat << 'EOF' > build.gradle
         buildscript {
             repositories {
@@ -49,7 +54,7 @@ jobs:
         }
         EOF
 
-        # 3. App build.gradle applying the resolved plugin instances
+        # 4. App build.gradle applying the resolved plugin instances
         cat << 'EOF' > app/build.gradle
         apply plugin: 'com.android.application'
         apply plugin: 'org.jetbrains.kotlin.android'
@@ -70,7 +75,7 @@ jobs:
         }
         EOF
 
-        # 4. Basic Core Layout
+        # 5. Basic Core Layout
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://android.com"
@@ -79,7 +84,7 @@ jobs:
             android:canRetrieveWindowContent="false" />
         EOF
 
-        # 5. Native Manifest Configuration
+        # 6. Native Manifest Configuration
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://android.com" package="com.example.appblocker">
@@ -98,7 +103,7 @@ jobs:
         </manifest>
         EOF
 
-        # 6. Service Implementation
+        # 7. Service Implementation
         cat << 'EOF' > app/src/main/java/com/example/appblocker/AppBlockerService.kt
         package com.example.appblocker
         import android.accessibilityservice.AccessibilityService
@@ -122,7 +127,7 @@ jobs:
         }
         EOF
 
-        # 7. Native Framework Main Interface
+        # 8. Native Framework Main Interface
         cat << 'EOF' > app/src/main/java/com/example/appblocker/MainActivity.kt
         package com.example.appblocker
         import android.content.Intent
