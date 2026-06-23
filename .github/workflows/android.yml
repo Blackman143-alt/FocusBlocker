@@ -16,22 +16,19 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Force Generate Perfect Project Structure
+    - name: Clean and Generate Base Files
       run: |
         rm -rf app settings.gradle build.gradle gradlew gradle
-        
-        # 1. Root settings.gradle
+        mkdir -p app/src/main/java/com/example/appblocker
+        mkdir -p app/src/main/res/xml
+
+        # 1. Base Project Configuration
         cat << 'EOF' > settings.gradle
-        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-        dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-            repositories { google(); mavenCentral() }
-        }
         rootProject.name = "FocusBlocker"
         include ':app'
         EOF
 
-        # 2. Root build.gradle
+        # 2. Simplified Build Manifest
         cat << 'EOF' > build.gradle
         plugins {
             id 'com.android.application' version '8.2.2' apply false
@@ -39,13 +36,12 @@ jobs:
         }
         EOF
 
-        # 3. Create deep directories
-        mkdir -p app/src/main/java/com/example/appblocker
-        mkdir -p app/src/main/res/xml
-
-        # 4. App-level build.gradle
+        # 3. Clean App build.gradle (No Material UI overhead)
         cat << 'EOF' > app/build.gradle
-        plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+        plugins { 
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
         android {
             namespace 'com.example.appblocker'
             compileSdk 34
@@ -56,31 +52,26 @@ jobs:
                 versionCode 1
                 versionName "1.0"
             }
-            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-            kotlinOptions { jvmTarget = '17' }
         }
         dependencies {
             implementation 'androidx.core:core-ktx:1.12.0'
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-            implementation 'com.google.android.material:material:1.11.0'
         }
         EOF
 
-        # 5. Accessibility Config XML (FIXED SCHEMA URL)
+        # 4. Basic Core Layout
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://android.com"
             android:accessibilityEventTypes="typeWindowStateChanged"
             android:accessibilityFeedbackType="feedbackGeneric"
-            android:accessibilityFlags="flagDefault"
             android:canRetrieveWindowContent="false" />
         EOF
 
-        # 6. Android Manifest XML (FIXED SCHEMA URL)
+        # 5. Native Manifest Configuration
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://android.com" package="com.example.appblocker">
-            <application android:allowBackup="true" android:label="Focus Blocker" android:theme="@android:style/Theme.DeviceDefault.Light">
+            <application android:label="Focus Blocker">
                 <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -95,7 +86,7 @@ jobs:
         </manifest>
         EOF
 
-        # 7. Kotlin Service Class
+        # 6. Service Implementation
         cat << 'EOF' > app/src/main/java/com/example/appblocker/AppBlockerService.kt
         package com.example.appblocker
         import android.accessibilityservice.AccessibilityService
@@ -106,29 +97,28 @@ jobs:
             override fun onAccessibilityEvent(event: AccessibilityEvent) {
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                     val openedApp = event.packageName?.toString() ?: return
-                    if (blockedApps.contains(openedApp)) { triggerHomeRedirect() }
+                    if (blockedApps.contains(openedApp)) {
+                        val intent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                    }
                 }
-            }
-            private fun triggerHomeRedirect() {
-                val intent = Intent(Intent.ACTION_MAIN).apply {
-                    addCategory(Intent.CATEGORY_HOME)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                startActivity(intent)
             }
             override fun onInterrupt() {}
         }
         EOF
 
-        # 8. Kotlin MainActivity Class
+        # 7. Native Framework Main Interface
         cat << 'EOF' > app/src/main/java/com/example/appblocker/MainActivity.kt
         package com.example.appblocker
         import android.content.Intent
         import android.os.Bundle
         import android.provider.Settings
         import android.widget.Button
-        import androidx.appcompat.app.AppCompatActivity
-        class MainActivity : AppCompatActivity() {
+        import android.app.Activity
+        class MainActivity : Activity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 val enableButton = Button(this).apply {
@@ -143,15 +133,15 @@ jobs:
         }
         EOF
 
-    - name: Setup Gradle
+    - name: Setup Gradle Build Environment
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: 8.5
 
-    - name: Build Debug APK
+    - name: Compile and Pack Android Package
       run: gradle assembleDebug
 
-    - name: Upload Finished APK
+    - name: Save Mobile App Output
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
