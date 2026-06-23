@@ -1,0 +1,103 @@
+name: Android CI Build
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Scaffold Project Directory Structure
+      run: |
+        rm -rf app settings.gradle build.gradle gradlew gradle gradle.properties
+        mkdir -p app/src/main/java/com/example/appblocker
+        mkdir -p app/src/main/res/xml
+
+    - name: Generate Build Properties
+      run: |
+        echo "rootProject.name = 'FocusBlocker'" > settings.gradle
+        echo "include ':app'" >> settings.gradle
+        echo "android.useAndroidX=true" > gradle.properties
+
+    - name: Generate Core Dependency Mapping
+      run: |
+        echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.2.2'; classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22' } }" > build.gradle
+        echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
+        
+        echo "apply plugin: 'com.android.application'" > app/build.gradle
+        echo "apply plugin: 'org.jetbrains.kotlin.android'" >> app/build.gradle
+        echo "android { namespace 'com.example.appblocker'; compileSdk 34; defaultConfig { applicationId 'com.example.appblocker'; minSdk 26; targetSdk 34; versionCode 1; versionName '1.0' } }" >> app/build.gradle
+        echo "dependencies { implementation 'androidx.core:core-ktx:1.12.0' }" >> app/build.gradle
+
+    - name: Create Flat Accessibility Configuration XML
+      run: |
+        echo '<?xml version="1.0" encoding="utf-8"?><accessibility-service xmlns:android="http://android.com" android:accessibilityEventTypes="typeWindowStateChanged" android:accessibilityFeedbackType="feedbackGeneric" android:canRetrieveWindowContent="false" />' > app/src/main/res/xml/accessibility_service_config.xml
+
+    - name: Create Flat Android Manifest XML
+      run: |
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com"><application android:label="Focus Blocker"><activity android:name="com.example.appblocker.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity><service android:name="com.example.appblocker.AppBlockerService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="false"><intent-filter><action android:name="android.view.accessibility.AccessibilityService" /></intent-filter><meta-data android:name="android.view.accessibility.accessibilityservice" android:resource="@xml/accessibility_service_config" /></service></application></manifest>' > app/src/main/AndroidManifest.xml
+
+    - name: Create Flat Background Monitoring Service
+      run: |
+        echo 'package com.example.appblocker' > app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo 'import android.accessibilityservice.AccessibilityService' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo 'import android.content.Intent' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo 'import android.view.accessibility.AccessibilityEvent' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo 'class AppBlockerService : AccessibilityService() {' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '    private val blockedApps = setOf("com.android.settings", "com.instagram.android")' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '    override fun onAccessibilityEvent(event: AccessibilityEvent) {' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '            val openedApp = event.packageName?.toString() ?: return' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '            if (blockedApps.contains(openedApp)) {' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '                val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME); flags = Intent.FLAG_ACTIVITY_NEW_TASK }' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '                startActivity(intent)' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '            }' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '        }' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '    }' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '    override fun onInterrupt() {}' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+        echo '}' >> app/src/main/java/com/example/appblocker/AppBlockerService.kt
+
+    - name: Create Flat Application User Interface
+      run: |
+        echo 'package com.example.appblocker' > app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo 'import android.content.Intent' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo 'import android.os.Bundle' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo 'import android.provider.Settings' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo 'import android.widget.Button' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo 'import android.app.Activity' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo 'class MainActivity : Activity() {' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '    override fun onCreate(savedInstanceState: Bundle?) {' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '        super.onCreate(savedInstanceState)' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '        val enableButton = Button(this).apply {' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '            text = "Enable App Blocker Service"' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '            setOnClickListener {' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '                startActivity(intent)' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '            }' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '        }' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '        setContentView(enableButton)' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '    }' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+        echo '}' >> app/src/main/java/com/example/appblocker/MainActivity.kt
+
+    - name: Setup Gradle Environment
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: 8.5
+
+    - name: Execute Native Project Compilation
+      run: gradle assembleDebug
+
+    - name: Save Mobile App Output
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
